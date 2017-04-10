@@ -23,7 +23,7 @@ OSW_CFG_TXT = BASE_DIR + SWITCH + '.txt'
 # +--SRC_OSW_IF--+--DST_VCE_IF--+--Access-Type--+--VLAN--+--QoS--+--Nexus_AP--+--Member/PO--+-----Descr---------+----Duplex-----+-----Speed-----+---Media Type---+---Action---+---Root-Guard---+---System-type---+---Check_Descr---+----Temp---------+ 
 #                                   |                                    
 #                                   |
-#                                   +-- Access, trunk, infra
+#                                   +-- Access, trunk, infra, 
 
 def get_string_from_range_to_list(range_str):
     ''' Takes '1-4' and Returns "1,2,3,4" '''
