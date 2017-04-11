@@ -10,6 +10,7 @@ import re
 #############################################
 
 SWITCH = 'NAOSW133'
+INFRA_CH_GRP_LIST = [1,133]
 SHEET = SWITCH
 BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C/' + SWITCH + '/Stage_1/'
 
@@ -109,40 +110,32 @@ def get_channel_group(if_cfg):
             ch_gr = int(re.findall(r'\d+',elem)[0])
     return ch_gr    
 
+def create_legendas():
+    pass
+
 def colour_output_xlsx():
+    '''Get OUTPUT_XLS and  colors lines to help people on check interfaces '''
     
     wb = load_workbook(OUTPUT_XLS)
     ws = wb.get_sheet_by_name(SHEET)
      
     
     MAX_COL = ws.max_column-1
-    MAX_COLUMN_COLOR = MAX_COL-2
+    MAX_COLUMN_COLOR = MAX_COL-1
     print 'MAX_COL = ', ws.max_column 
 
-    redFill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')      # To be Deleted
+    redFill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')         # To be Deleted
     orangeFill = PatternFill(start_color='FF8000', end_color='FF8000', fill_type='solid')   # To be Checked
     yellowFill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')   # To be Merged
    
-   
+
     for row in ws.rows:
         src_if = row[0].value
-               
-          
-        if src_if[:12] == "Port-channel" or str.isdigit(str(row[6].value)):           # if portchannel or member then orange
+           
+        if  (row[5].value == "Infra" and  str.isdigit(str(row[6].value))) or row[13].value == "Decommissioned" or row[13].value == "Decomissioned" or row[13].value == "Spare" or row[13].value == "Monitoring" or row[3].value == 1:           # if ((portchannel or member) and (id in INFRA)list)) or marked as infra then red
             for cell in row[0:MAX_COLUMN_COLOR]:
-                cell.fill = orangeFill
-        if row[MAX_COL].value == 'temp':
-            row[MAX_COL].value = ''
-        if row[MAX_COL].value == 'r':
-            row[MAX_COL].value = ''
-            for cell in row[0:MAX_COLUMN_COLOR]:
-                cell.fill = redFill
-        elif row[MAX_COL].value == 'n':
-            row[MAX_COL].value = ''   
-        elif row[13].value == "Decommissioned" or row[12].value == "Decomissioned" or row[12].value == "Spare" or row[13].value == "Monitoring":
-            for cell in row[0:MAX_COLUMN_COLOR]:
-                cell.fill = redFill
-        elif row[13].value == "TBV" or row[13].value == "TBV-NC" or row[13].value == "Infra": # IF Can be Core-Router, Core-Switch or Routed
+                cell.fill = redFill 
+        elif  (row[5].value == "Infra" and  not(str.isdigit(str(row[6].value)))) or row[13].value == "TBV" or row[13].value == "TBV-NC": 
             for cell in row[0:MAX_COLUMN_COLOR]:
                 cell.fill = orangeFill
         elif row[13].value == "Core-Router" or row[13].value == "Core-Switch":
@@ -154,7 +147,7 @@ def colour_output_xlsx():
 
 def readin_xls_writeout_xls():
     
-    header_out = ['SRC OSW IF', 'DST VCE IF', 'Access Type', 'VLAN', 'QoS', 'Nexus AP', 'Member/PO', 'Descr', 'Duplex', 'Speed', 'Media Type', 'Action', 'Root-Guard', 'System Type', 'Check Descr', 'temp']
+    header_out = ['SRC OSW IF', 'DST VCE IF', 'Access Type', 'VLAN', 'QoS', 'Nexus AP', 'Member/PO', 'Descr', 'Duplex', 'Speed', 'Media Type', 'Action', 'Root-Guard', 'System Type', 'Check Descr']
     
     parse = c.CiscoConfParse(OSW_CFG_TXT)
     
@@ -177,8 +170,8 @@ def readin_xls_writeout_xls():
     ws_w.append(header_out)
     
  
-    ws_w.cell(row=MAX_ROW+1,column=MAX_COL+1, value = 10).value
-    
+
+    ws_w.cell(row=MAX_ROW,column=MAX_COL, value = 10).value     # WB_W Table Exist if it has been accessed
     
     for row_r,row_w in zip(ws_r.rows,ws_w.rows):
         if row_r[0].value == "Device":
@@ -194,7 +187,7 @@ def readin_xls_writeout_xls():
         row_w[11].value = str(row_r[17].value)                                           # Copy Action
         row_w[12].value = str(row_r[11].value)                                           # Copy Root_Guard    
         row_w[13].value = str(row_r[12].value) 
-        row_w[15].value = 'n'
+
 
                
         for intf_obj in intf_obj_list:
@@ -219,16 +212,13 @@ def readin_xls_writeout_xls():
                 elif intf_obj.has_child_with("switchport mode access"):   
                     row_w[2].value = 'Access'   
                     if intf_obj.has_child_with("switchport access vlan"):
-                        access_vlan = get_access_vlan(intf_cfg)                  
-#                        row_w[2].value = 'Access'             
+                        access_vlan = get_access_vlan(intf_cfg)                                                    
                         row_w[3].value = str(access_vlan)
-                        if access_vlan == 1 and row_r[12].value != 'Monitoring':
-                            row_w[15].value = 'r'                                       # colour_output_xlsx() will fill red
                     else:
                         row_w[3].value = 1
-                        if row_r[12].value != 'Monitoring':
-                            row_w[15].value = 'r'                                       # colour_output_xlsx() will fill red
-
+                elif not(intf_obj.has_child_with("switchport mode")) and intf_obj.has_child_with("shutdown"):
+                    row_w[2].value = 'ShutDown'
+                    row_w[3].value = 1
                                 
                 if intf_obj.has_child_with("description"):
                     if description_are_equals(str.strip(str(row_r[5].value)), intf_cfg):
@@ -238,12 +228,21 @@ def readin_xls_writeout_xls():
                     else:
                         row_w[7].value = "INTERFACE TO BE CHECKED"
                         row_w[14].value = "Description CHANGED!!!"
+                        row_w[14].fill = pinkFill                        
+                elif not(intf_obj.has_child_with("description")):
+                    if row_r[5].value == 0:
+                        row_w[14].value = "Description unchanged"
+                        row_w[14].fill = greenFill
+                    else:
+                        row_w[7].value = "INTERFACE TO BE CHECKED"
+                        row_w[14].value = "Description CHANGED!!!"
                         row_w[14].fill = pinkFill
-                        
+   
+
             else:
                 continue            
              
-    ws_w.cell(row=MAX_ROW+1,column=MAX_COL+1, value = '')
+
     wb_w.save(filename = OUTPUT_XLS)
     print "End F1"
 
