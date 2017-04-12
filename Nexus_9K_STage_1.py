@@ -121,7 +121,7 @@ def colour_output_xlsx():
      
     
     MAX_COL = ws.max_column-1
-    MAX_COLUMN_COLOR = MAX_COL-1
+    MAX_COLUMN_COLOR = MAX_COL
     print 'MAX_COL = ', ws.max_column 
 
     redFill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')         # To be Deleted
