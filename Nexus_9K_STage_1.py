@@ -122,7 +122,6 @@ def colour_output_xlsx():
     
     MAX_COL = ws.max_column-1
     MAX_COLUMN_COLOR = MAX_COL
-    print 'MAX_COL = ', ws.max_column 
 
     redFill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')         # To be Deleted
     orangeFill = PatternFill(start_color='FF8000', end_color='FF8000', fill_type='solid')   # To be Checked
@@ -132,7 +131,7 @@ def colour_output_xlsx():
     for row in ws.rows:
         src_if = row[0].value
            
-        if  (row[5].value == "Infra" and  str.isdigit(str(row[6].value))) or row[13].value == "Decommissioned" or row[13].value == "Decomissioned" or row[13].value == "Spare" or row[13].value == "Monitoring" or row[3].value == 1:           # if ((portchannel or member) and (id in INFRA)list)) or marked as infra then red
+        if  (row[5].value == "Infra" and  str.isdigit(str(row[6].value))) or row[13].value == "Decommissioned" or row[13].value == "Spare" or row[13].value == "Monitoring" or row[3].value == 1:           # if ((portchannel or member) and (id in INFRA)list)) or marked as infra then red
             for cell in row[0:MAX_COLUMN_COLOR]:
                 cell.fill = redFill 
         elif  (row[5].value == "Infra" and  not(str.isdigit(str(row[6].value)))) or row[13].value == "TBV" or row[13].value == "TBV-NC": 
