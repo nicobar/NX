@@ -177,7 +177,7 @@ def readin_xls_writeout_xls():
             continue
         intf_from_xls = 'interface ' + str.strip(str(row_r[3].value))
         #print row_r[3].value
-        row_w[0].value = str(row_r[3].value)                                             # Copy interface (or row_r[4].value)
+        row_w[0].value = str(row_r[3].value)                                             # Copy interface (or row_r[3].value)
         row_w[5].value = str(row_r[13].value)                                            # Copy New-Nexus AP into Nexus AP
         #row_w[7].value = row_r[5].value                                                 # Copy Port Description
         row_w[8].value = str(row_r[8].value)                                             # Copy Duplex
