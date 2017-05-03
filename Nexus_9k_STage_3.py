@@ -10,13 +10,11 @@ import itertools
 #############################################
 
 SWITCH = 'NAOSW133'
-#INFRA_CH_GRP_LIST = [1,133]
 SHEET = SWITCH
 BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C/' + SWITCH + '/Stage_3/'
 
 
 INPUT_XLS = BASE_DIR + SWITCH + '_OUT_DB_OPT.xlsx'
-#OUTPUT_XLS = BASE_DIR + SWITCH + '_OUT_DB.xlsx'
 OSW_CFG_TXT = BASE_DIR + SWITCH + '.txt'
 OSWVCE_CFG_TXT = BASE_DIR + SWITCH + 'VCE' +'.txt'
 # OSWVCE_CFG_IF_TXT = BASE_DIR + SWITCH + 'VCE' + '-' + 'IF' + '.txt'
@@ -109,17 +107,16 @@ def get_vlan_from_xls():
 
 def get_svi_from_cfg():
     parse = c.CiscoConfParse(OSW_CFG_TXT)
-    intf_obj_list = parse.find_objects(r'^interface Vlan')
+    svi_obj_list = parse.find_objects(r'^interface Vlan')
     
-    lst = [obj.text for obj in intf_obj_list]       # this get ["interface VlanX",...]
-   
-    lst2 = [elem.split(' ')[1] for elem in lst]     # this get ["VlanX",...]
-    
-    lst3 = [re.findall('\d+',x)[0] for x in lst2]   # this get ["X",...]
-    
-    lst3.sort(key=natural_keys)
-    
-    return lst3
+#    lst = [obj.text for obj in svi_obj_list]       # this get ["interface VlanX",...]
+#  lst2 = [elem.split(' ')[1] for elem in lst]     # this get ["VlanX",...]
+#  lst3 = [re.findall('\d+',x)[0] for x in lst2]   # this get ["X",...]
+#  lst3.sort(key=natural_keys)   
+#    return lst3
+
+    lst = [re.findall(r'^interface Vlan(\d+)',svi_obj.text)[0] for svi_obj in svi_obj_list] 
+    return lst
 
 def get_svi_on_device(vlanxls, svi_from_cfg):
     a = [x for x in svi_from_cfg if x in vlanxls]
@@ -150,7 +147,7 @@ def write_normalized_OSWVCE_cfg(if_ntbm_N9508, vlan_ntbm_N9508, svi_ntbm_N9508):
     parse.commit()
     #parse.save_as(OSWVCE_CFG_IF_TXT)
     intf_obj_list = parse.find_objects(r'^interface .*Ethernet')
-    cfg_intf_list = [intf_obj.ioscfg for intf_obj in intf_obj_list]
+    cfg_intf_list = [intf_obj.ioscfg + ['!'] for intf_obj in intf_obj_list]
     cfg_intf =  list(itertools.chain.from_iterable(cfg_intf_list))
     print "done if_cfg"
     
@@ -165,7 +162,7 @@ def write_normalized_OSWVCE_cfg(if_ntbm_N9508, vlan_ntbm_N9508, svi_ntbm_N9508):
             
     parse.commit()
     vlan_obj_list = parse.find_objects(r'^vlan \d+$')
-    cfg_vlan_list = [vlan_obj.ioscfg for vlan_obj in vlan_obj_list]
+    cfg_vlan_list = [vlan_obj.ioscfg + ['!'] for vlan_obj in vlan_obj_list]
     cfg_vlan =  list(itertools.chain.from_iterable(cfg_vlan_list))
     print "done vlan_cfg"
     
@@ -180,11 +177,11 @@ def write_normalized_OSWVCE_cfg(if_ntbm_N9508, vlan_ntbm_N9508, svi_ntbm_N9508):
             
     parse.commit()    
     svi_obj_list = parse.find_objects(r'^interface Vlan')
-    cfg_svi_list = [svi_obj.ioscfg for svi_obj in svi_obj_list]
+    cfg_svi_list = [svi_obj.ioscfg + ['!'] for svi_obj in svi_obj_list]
     cfg_svi =  list(itertools.chain.from_iterable(cfg_svi_list))
     print "done vlan_cfg"
     
-    cfg = cfg_vlan + ['!'] + cfg_intf + ['!'] + cfg_svi 
+    cfg = cfg_vlan + cfg_intf + cfg_svi 
     parse_out =  c.CiscoConfParse(cfg)
     parse_out.save_as(OSWVCE_CFG_TXT)
     print "done write"
