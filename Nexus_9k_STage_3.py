@@ -41,7 +41,7 @@ def get_col_N3048(ws,col):
     return [str(ws.cell(row = r, column = col).value) for r in range(2,ws.max_row+1) if ws.cell(row = r, column = NEXUS_AP_COL).value == 'N3048' ]
 
 def get_col_N9508(ws,col):
-    ''' Take a worksheet, return column "col" as lists conditioned to col = 6 == "N3048" '''
+    ''' Take a worksheet, return column "col" as lists conditioned to col = 6 != "N3048" '''
     NEXUS_AP_COL = 6
     return [str(ws.cell(row = r, column = col).value) for r in range(2,ws.max_row+1) if ws.cell(row = r, column = NEXUS_AP_COL).value != 'N3048' ]
 
@@ -57,6 +57,8 @@ def get_if_from_xls():
     return (if_N9508,if_N3048)
 
 def get_if_from_cfg():
+    ''' from cfg get list of all *Ethernet interface '''
+    
     parse = c.CiscoConfParse(OSW_CFG_TXT)
     intf_obj_list = parse.find_objects(r'^interface .*Ethernet')
     
@@ -65,13 +67,15 @@ def get_if_from_cfg():
     return a
     
 def get_vlan_from_cfg():
+    ''' from cfg get list of all L2 vlan  '''
+    
     parse = c.CiscoConfParse(OSW_CFG_TXT)
     vlan_obj_list = parse.find_objects(r'^vlan \d+')
     
     return [obj.text.split(' ')[1] for obj in vlan_obj_list]
 
 def get_vlan_from_xls():
-    
+    ''' from xls get list of all L2 vlan  '''
     a_N9508 = set()
     a_N3048 = set()
     wb_r = load_workbook(INPUT_XLS)
@@ -104,24 +108,24 @@ def get_vlan_from_xls():
     return (lst2_N9508,lst2_N3048)
 
 def get_svi_from_cfg():
+    ''' from cfg get list of all svi interfaces  '''
+    
     parse = c.CiscoConfParse(OSW_CFG_TXT)
     svi_obj_list = parse.find_objects(r'^interface Vlan')
     
-#    lst = [obj.text for obj in svi_obj_list]       # this get ["interface VlanX",...]
-#  lst2 = [elem.split(' ')[1] for elem in lst]     # this get ["VlanX",...]
-#  lst3 = [re.findall('\d+',x)[0] for x in lst2]   # this get ["X",...]
-#  lst3.sort(key=natural_keys)   
-#    return lst3
-
     lst = [re.findall(r'^interface Vlan(\d+)',svi_obj.text)[0] for svi_obj in svi_obj_list] 
     return lst
 
 def get_svi_on_device(vlanxls, svi_from_cfg):
+    ''' creates a list of svi interface that are both in cfg as svi and in xls as vlan '''
+    
     a = [x for x in svi_from_cfg if x in vlanxls]
     a.sort(key=natural_keys)
     return a
 
 def get_list_not_to_be_migrated(ifxls,ifcfg):
+    ''' given set(a) and set(b), returns list(b-a) if b > a else []  '''
+    
     a = set(ifxls)
     b = set(ifcfg)
     c = b-a
@@ -132,8 +136,9 @@ def get_list_not_to_be_migrated(ifxls,ifcfg):
     else:
         return []
     
-
 def get_migration_dictionary_N3048():
+    ''' return {SRC_IF:DEST_IF} for N3048  '''
+    
     wb_r = load_workbook(INPUT_XLS)
     ws_r = wb_r.get_sheet_by_name(SHEET)
     
@@ -143,6 +148,8 @@ def get_migration_dictionary_N3048():
     return {str(ws_r.cell(row = r, column = SRC_IF_COL).value): str(ws_r.cell(row = r, column = DST_IF_COL).value) for r in range(2,ws_r.max_row+1) if ws_r.cell(row = r, column = NEXUS_AP_COL).value == 'N3048' }
 
 def get_migration_dictionary_N9508():
+    ''' return {SRC_IF:DEST_IF} for N9508  '''
+    
     wb_r = load_workbook(INPUT_XLS)
     ws_r = wb_r.get_sheet_by_name(SHEET)
     
@@ -152,14 +159,15 @@ def get_migration_dictionary_N9508():
     return {str(ws_r.cell(row = r, column = SRC_IF_COL).value): str(ws_r.cell(row = r, column = DST_IF_COL).value) for r in range(2,ws_r.max_row+1) if ws_r.cell(row = r, column = NEXUS_AP_COL).value != 'N3048' }
 
 
-def get_normalized_if_OSWVCE_cfg(if_ntbm_N9508, mig_dict):
+def get_normalized_if_OSWVCEVSW_cfg(if_ntbm, mig_dict):
+    ''' return cfg as list of migrated and cleaned - fz clean_if_cfg - interfaces  '''
     
     parse = c.CiscoConfParse(OSW_CFG_TXT)
      
     intf_obj_list = parse.find_objects(r'^interface .*Ethernet')
      
     for intf_obj in intf_obj_list:
-        if intf_obj.text in if_ntbm_N9508:
+        if intf_obj.text in if_ntbm:
             intf_obj.delete()
         elif intf_obj.text in mig_dict:
             intf_obj.replace(intf_obj.text, mig_dict[intf_obj.text])
@@ -170,10 +178,12 @@ def get_normalized_if_OSWVCE_cfg(if_ntbm_N9508, mig_dict):
     intf_obj_list = parse.find_objects(r'^interface Ethernet')
     cf_intf_list = [intf_obj.ioscfg + ['!'] for intf_obj in intf_obj_list]
     cf_intf =  list(itertools.chain.from_iterable(cf_intf_list))
-    return cf_intf
+    cf_intf2 = clean_if_cfg(cf_intf)
+    return cf_intf2
      
      
-def get_normalized_vlan_OSWVCE_cfg(vlan_ntbm_N9508):
+def get_normalized_vlan_OSWVCEVSW_cfg(vlan_ntbm):
+    ''' return cfg as list of vlans  '''
     
     parse = c.CiscoConfParse(OSW_CFG_TXT)
      
@@ -181,7 +191,7 @@ def get_normalized_vlan_OSWVCE_cfg(vlan_ntbm_N9508):
      
     for vlan_obj in vlan_obj_list:
         vlan = vlan_obj.text
-        if re.findall(r'^vlan (\d+)$',vlan)[0] in vlan_ntbm_N9508:
+        if re.findall(r'^vlan (\d+)$',vlan)[0] in vlan_ntbm:
             vlan_obj.delete()
              
     parse.commit()
@@ -190,7 +200,8 @@ def get_normalized_vlan_OSWVCE_cfg(vlan_ntbm_N9508):
     cf_vlan =  list(itertools.chain.from_iterable(cf_vlan_list))
     return cf_vlan
 
-def get_normalized_svi_OSWVCE_cfg(svi_ntbm_N9508):
+def get_normalized_svi_OSWVCEVSW_cfg(svi_ntbm, svi_on_device):
+    ''' return cfg as list of svi  '''
     
     parse = c.CiscoConfParse(OSW_CFG_TXT) 
     svi_obj_list = parse.find_objects(r'^interface Vlan')
@@ -198,16 +209,78 @@ def get_normalized_svi_OSWVCE_cfg(svi_ntbm_N9508):
     for svi_obj in svi_obj_list:
         svi = svi_obj.text
         num_svi = re.findall(r'^interface Vlan(\d+)$',svi)[0]
-        if num_svi in svi_ntbm_N9508:
+        if num_svi in svi_ntbm:
             svi_obj.delete()
              
     parse.commit()           
     svi_obj_list = parse.find_objects(r'^interface Vlan')
     cf_svi_list = [svi_obj.ioscfg + ['!'] for svi_obj in svi_obj_list]
-    cf_svi =  list(itertools.chain.from_iterable(cf_svi_list))
+    cf_svi_1 =  list(itertools.chain.from_iterable(cf_svi_list))
+    cf_svi = clean_hsrp_to_svi(svi_on_device, cf_svi_1)
     return cf_svi
 
+def clean_if_cfg(cfg):
+    ''' cleans if cfg (lst) with command stored in  command_to_be_deleted set '''
+    
+    parse = c.CiscoConfParse(cfg)
+    command_to_be_deleted = (r'no cdp enable', r'spanning-tree bpduguard enable')
+ 
+    intf_obj_list = parse.find_objects(r'^interface')
+    for intf_obj in intf_obj_list:
+        for c_tbd in command_to_be_deleted:
+            intf_obj.delete_children_matching(c_tbd)
+    parse.commit()
+    intf_obj_list = parse.find_objects(r'^interface')
+    cf_intf_list = [intf_obj.ioscfg + ['!'] for intf_obj in intf_obj_list]
+    cf_intf =  list(itertools.chain.from_iterable(cf_intf_list))
+    return cf_intf
 
+def clean_hsrp_to_svi(svi_tbm_list, cfg):
+    ''' translate HSRP from IOS to NS-OX '''
+    
+    config_svi_to_add = []
+    parse = c.CiscoConfParse(cfg)
+    
+    svi_hsrp_obj_list = parse.find_objects(r'^interface Vlan')
+
+    svi_hsrp_list_h2 = [obj.ioscfg for obj in svi_hsrp_obj_list]
+    svi_hsrp_list_h1 = list(itertools.chain.from_iterable(svi_hsrp_list_h2))
+    
+    svi_hsrp_list = [svi for svi in svi_hsrp_list_h1 if svi.find('vrrp') < 0 ] # eliminates VRRP commands (will become HSRP secondary on VPE)
+
+
+    for line in  svi_hsrp_list:
+        line_lst = line.lstrip().split()
+        
+        if line_lst[0] == 'standby':        
+            if len(line_lst) == 4:
+                if line_lst[2] == 'ip':
+                    config_svi_to_add.append(' hsrp ' + line_lst[1])
+                    config_svi_to_add.append('  ip ' + line_lst[3])
+                elif line_lst[2] == 'priority':
+                    config_svi_to_add.append('  priority ' + line_lst[3])
+            elif len(line_lst) == 3:
+                if line_lst[2] == 'preempt':
+                    config_svi_to_add.append('  preempt')
+                else:
+                    config_svi_to_add.append('  ERROR TO BE CHECKED ')
+        elif line_lst[0] == 'interface':
+            config_svi_to_add.append('!')
+            config_svi_to_add.append(line)
+        else:
+            config_svi_to_add.append(line)
+            
+    return config_svi_to_add
+            
+#     for elem in config_svi_to_add:
+#         print elem
+#     help_parse =  c.CiscoConfParse(config_svi_to_add)
+#     #for svi_obj in help_parse.objs:
+#     cf_intf_list = [svi_obj.ioscfg + ['!'] for svi_obj in help_parse.objs]
+#     cf_intf =  list(itertools.chain.from_iterable(cf_intf_list))    
+#     return cf_intf
+#   
+    
 #############################################
 ################### MAIN ####################
 #############################################
@@ -252,16 +325,16 @@ svi_not_to_be_migrated_N3048 = get_list_not_to_be_migrated(svi_on_N3048, svi_fro
 print "svi_not_to_be_migrated_N9508 = ", svi_not_to_be_migrated_N9508
 print "svi_not_to_be_migrated_N3048 = ", svi_not_to_be_migrated_N3048
 
-#write_normalized_OSWVCE_cfg(if_not_to_be_migrated_N9508, vlan_not_to_be_migrated_N9508, svi_not_to_be_migrated_N9508)
+
 migr_dict_N9508 = get_migration_dictionary_N9508()
-cfg_intf_N9508 = get_normalized_if_OSWVCE_cfg(if_not_to_be_migrated_N9508, migr_dict_N9508)
-cfg_vlan_N9508 = get_normalized_vlan_OSWVCE_cfg(vlan_not_to_be_migrated_N9508)
-cfg_svi_N9508 = get_normalized_svi_OSWVCE_cfg(svi_not_to_be_migrated_N9508)
+cfg_intf_N9508 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N9508, migr_dict_N9508)
+cfg_vlan_N9508 = get_normalized_vlan_OSWVCEVSW_cfg(vlan_not_to_be_migrated_N9508)
+cfg_svi_N9508 = get_normalized_svi_OSWVCEVSW_cfg(svi_not_to_be_migrated_N9508, svi_on_N9508)
 
 migr_dict_N3048 = get_migration_dictionary_N3048()
-cfg_intf_N3048 = get_normalized_if_OSWVCE_cfg(if_not_to_be_migrated_N3048, migr_dict_N3048)
-cfg_vlan_N3048 = get_normalized_vlan_OSWVCE_cfg(vlan_not_to_be_migrated_N3048)
-cfg_svi_N3048 = get_normalized_svi_OSWVCE_cfg(svi_not_to_be_migrated_N3048)
+cfg_intf_N3048 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N3048, migr_dict_N3048)
+cfg_vlan_N3048 = get_normalized_vlan_OSWVCEVSW_cfg(vlan_not_to_be_migrated_N3048)
+cfg_svi_N3048 = get_normalized_svi_OSWVCEVSW_cfg(svi_not_to_be_migrated_N3048, svi_on_N3048)
 
 cfg_N9508 = cfg_vlan_N9508 + cfg_intf_N9508 + cfg_svi_N9508 
 parse_out_N9508 =  c.CiscoConfParse(cfg_N9508)
@@ -271,4 +344,3 @@ cfg_N3048 = cfg_vlan_N3048 + cfg_intf_N3048 + cfg_svi_N3048
 parse_out_N3048 =  c.CiscoConfParse(cfg_N3048)
 parse_out_N3048.save_as(OSWVSW_CFG_TXT)
 print "done write"
-#write_normalized_OSWVSW_cfg(if_not_to_be_migrated_N3048, vlan_not_to_be_migrated_N3048, svi_not_to_be_migrated_N3048)
