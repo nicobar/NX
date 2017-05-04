@@ -177,9 +177,10 @@ def get_normalized_if_OSWVCEVSW_cfg(if_ntbm, mig_dict):
     
     intf_obj_list = parse.find_objects(r'^interface Ethernet')
     cf_intf_list = [intf_obj.ioscfg + ['!'] for intf_obj in intf_obj_list]
-    cf_intf =  list(itertools.chain.from_iterable(cf_intf_list))
-    cf_intf2 = clean_if_cfg(cf_intf)
-    return cf_intf2
+    cf_intf_1 =  list(itertools.chain.from_iterable(cf_intf_list))
+    cf_intf_2 = clean_if_cfg(cf_intf_1)
+    cf_intf = add_shutdown(cf_intf_2)
+    return cf_intf
      
      
 def get_normalized_vlan_OSWVCEVSW_cfg(vlan_ntbm):
@@ -216,7 +217,8 @@ def get_normalized_svi_OSWVCEVSW_cfg(svi_ntbm, svi_on_device):
     svi_obj_list = parse.find_objects(r'^interface Vlan')
     cf_svi_list = [svi_obj.ioscfg + ['!'] for svi_obj in svi_obj_list]
     cf_svi_1 =  list(itertools.chain.from_iterable(cf_svi_list))
-    cf_svi = clean_hsrp_to_svi(svi_on_device, cf_svi_1)
+    cf_svi_2 = clean_hsrp_to_svi(svi_on_device, cf_svi_1)
+    cf_svi = add_shutdown(cf_svi_2)
     return cf_svi
 
 def clean_if_cfg(cfg):
@@ -272,14 +274,16 @@ def clean_hsrp_to_svi(svi_tbm_list, cfg):
             
     return config_svi_to_add
             
-#     for elem in config_svi_to_add:
-#         print elem
-#     help_parse =  c.CiscoConfParse(config_svi_to_add)
-#     #for svi_obj in help_parse.objs:
-#     cf_intf_list = [svi_obj.ioscfg + ['!'] for svi_obj in help_parse.objs]
-#     cf_intf =  list(itertools.chain.from_iterable(cf_intf_list))    
-#     return cf_intf
-#   
+def add_shutdown(cfg):
+    
+    new_cfg = []
+    for line in cfg:
+        if line.lstrip().split()[0] == 'interface':
+            new_cfg.append(line)
+            new_cfg.append(' shutdown')
+        else:
+            new_cfg.append(line)
+    return new_cfg
     
 #############################################
 ################### MAIN ####################
