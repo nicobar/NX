@@ -275,7 +275,8 @@ def clean_hsrp_to_svi(svi_tbm_list, cfg):
     return config_svi_to_add
             
 def add_shutdown(cfg):
-    
+    ''' add  shutdown after 'interface' to list 'cfg'  '''
+
     new_cfg = []
     for line in cfg:
         if line.lstrip().split()[0] == 'interface':
@@ -285,48 +286,10 @@ def add_shutdown(cfg):
             new_cfg.append(line)
     return new_cfg
 
-def get_ospf_int_vlan(conf):
-    dict_net = dict()  # { area: [ipaddr('prefix/lenght'),] }
-    dict_svi_to_area = dict() # { SVI : area }
-    parse = c.CiscoConfParse(conf)
-    
-    ospf_obj_list = parse.find_objects(r'^router ospf')
-    parse.commit()
-    svi_obj_list = parse.find_objects(r'^interface Vlan')
-          
-    for line in ospf_obj_list[0].ioscfg:
-        hl = line.split()
-        if hl[0] == 'network':
-            net = hl[1]
-            net_hostmask = hl[2]
-            area = hl[4]
-            if area not in dict_net:
-                dict_net[area] = [ipaddr.IPNetwork(net + '/' + net_hostmask)]
-            else:
-                dict_net[area].append(ipaddr.IPNetwork(net + '/' + net_hostmask))
-    for area in dict_net:
-        dict_net[area] = ipaddr.collapse_address_list(dict_net[area])
 
-    
-    for svi_obj in svi_obj_list:
-        for line in svi_obj.ioscfg:
-            hl = line.split()
-            if hl[0] == 'ip' and hl[1] == 'address':
-                ip_svi = ipaddr.IPAddress(hl[2])
-                dict_svi_to_area[svi_obj.text] = -1
-                for area in dict_net:
-                    for net in dict_net[area]:
-                        if ip_svi in net:
-                            if int(area) <= 255:
-                                dict_svi_to_area[svi_obj.text] = '0.0.0.' + area
-                            else:
-                                dict_svi_to_area[svi_obj.text] = area
-                    
-                
-    return dict_svi_to_area
 
 def get_cleaned_routes(): # return a list of cleaned (with egress interfaces) routes
-   
+    ''' return a list with all OSW routes with the right egress interface  '''
 
     new_route_list = ['!' , 'vrf context OPNET' ]
     parse = c.CiscoConfParse(OSW_CFG_TXT)
@@ -360,6 +323,7 @@ def get_cleaned_routes(): # return a list of cleaned (with egress interfaces) ro
     return new_route_list + ['!']
 
 def get_svi_with_static_on_N3048(static_routes, svi_on_vsw):
+    ''' return a list of svi that are egress intf in static routes  '''
     
     real_svi_on_vsw = []   
     for route in static_routes:
@@ -372,6 +336,7 @@ def get_svi_with_static_on_N3048(static_routes, svi_on_vsw):
     return real_svi_on_vsw
 
 def get_routes_for_devices(static_routes, real_svi_on_device):
+    ''' return a list of routes whose egress if are referenced in static routes   '''
     
     real_routes_on_device = ['!' , 'vrf context OPNET']   
     for route in static_routes:
@@ -382,7 +347,89 @@ def get_routes_for_devices(static_routes, real_svi_on_device):
                 real_routes_on_device.append(route)
     
     return real_routes_on_device + ['!']
+   
+def get_net_in_area():
+    ''' return a dict of kind: { area: [ipaddr('prefix/lenght'),] } '''
     
+    dict_net_in_area = dict()  # { area: [ipaddr('prefix/lenght'),] }
+    
+    parse = c.CiscoConfParse(OSW_CFG_TXT)
+    
+    ospf_obj_list = parse.find_objects(r'^router ospf')
+ 
+    #parse.commit()
+    #L3intf_obj_list = parse.find_objects_with_child(r'^interface *.Ethernet', 'ip address')
+          
+    for line in ospf_obj_list[0].ioscfg:
+        hl = line.split()
+        if hl[0] == 'network':
+            net = hl[1]
+            net_hostmask = hl[2]
+            area = hl[4]
+            if area not in dict_net_in_area:
+                dict_net_in_area[area] = [ipaddr.IPNetwork(net + '/' + net_hostmask)]
+            else:
+                dict_net_in_area[area].append(ipaddr.IPNetwork(net + '/' + net_hostmask))
+    for area in dict_net_in_area:
+        dict_net_in_area[area] = ipaddr.collapse_address_list(dict_net_in_area[area])
+    return dict_net_in_area
+
+def get_svi_to_area(d_net_in_area):
+    ''' take { area: [ipaddr('prefix/lenght'),] } and returns a dict of kind: { SVI : area } '''
+
+    dict_svi_to_area = dict() # { SVI : area }
+    parse = c.CiscoConfParse(OSW_CFG_TXT)
+    
+    svi_obj_list = parse.find_objects(r'^interface Vlan')    
+
+    for svi_obj in svi_obj_list:
+        for line in svi_obj.ioscfg:
+            hl = line.split()
+            if hl[0] == 'ip' and hl[1] == 'address':
+                ip_svi = ipaddr.IPAddress(hl[2])
+                dict_svi_to_area[svi_obj.text] = -1
+                for area in d_net_in_area:
+                    for net in d_net_in_area[area]:
+                        if ip_svi in net:
+                            if int(area) <= 255:
+                                dict_svi_to_area[svi_obj.text] = '0.0.0.' + area
+                            else:
+                                dict_svi_to_area[svi_obj.text] = area
+                    
+                
+    return dict_svi_to_area    
+
+def add_ospf_to_svi_cfg(svi_conf_list,svi_on_device,d_svi_to_area):
+    ''' take svi cfg and returns a the same cfg with ospf part '''
+
+    svi_with_ospf_conf = []
+    vlan_svi = None
+        
+    for line in  svi_conf_list:
+        
+        if  re.match('interface Vlan', line):
+            vlan_svi = re.findall(r'\d+',line)[0]
+            int_svi = line
+            
+        if vlan_svi in svi_on_device:
+            line_lst = line.lstrip().split()
+            if  re.match('interface Vlan', line):
+                #svi_with_ospf_conf.append('!')
+                svi_with_ospf_conf.append(line)
+            elif line_lst[0] == 'ip' and line_lst[1] == 'address':
+                if int_svi in d_svi_to_area:
+                    if d_svi_to_area[int_svi]>0:
+
+                        
+                        svi_with_ospf_conf.append(' vrf member OPNET')
+                        svi_with_ospf_conf.append(line)
+                        svi_with_ospf_conf.append(' ip router ospf 249 area ' + str(d_svi_to_area['interface Vlan' + vlan_svi]))
+            
+                  
+            else:
+                svi_with_ospf_conf.append(line)
+    
+    return svi_with_ospf_conf
 
 #############################################
 ################### MAIN ####################
@@ -460,6 +507,9 @@ vlan_not_to_be_migrated_N3048 = candidate_vlan_not_to_be_migrated_N3048
 
 ################ MAIN IF #############
 
+net_in_area_dict = get_net_in_area()
+svi_to_area_dict = get_svi_to_area (net_in_area_dict)
+
 if len(svi_on_N3048) > 0: # are there svi on N3048 ??
     svi_on_N9508 = list (set(candidate_svi_on_N9508) - set(svi_on_N3048))
     svi_on_N9508.sort(key=natural_keys)
@@ -478,6 +528,7 @@ if len(svi_on_N3048) > 0: # are there svi on N3048 ??
     cfg_intf_N9508 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N9508, migr_dict_N9508)
     cfg_vlan_N9508 = get_normalized_vlan_OSWVCEVSW_cfg(vlan_not_to_be_migrated_N9508)
     cfg_svi_N9508 = get_normalized_svi_OSWVCEVSW_cfg(svi_not_to_be_migrated_N9508, svi_on_N9508)
+    cfg_svi_and_ospf_N9508 = add_ospf_to_svi_cfg(cfg_svi_N9508,svi_on_N9508,svi_to_area_dict) # from cfg_svi_N9508 could get svi_on_N9508 via ciscoconfparse
     routes_for_N9508 = get_routes_for_devices(routes, svi_on_N9508)
     
     
@@ -485,6 +536,7 @@ if len(svi_on_N3048) > 0: # are there svi on N3048 ??
     cfg_intf_N3048 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N3048, migr_dict_N3048)
     cfg_vlan_N3048 = get_normalized_vlan_OSWVCEVSW_cfg(vlan_not_to_be_migrated_N3048)
     cfg_svi_N3048 = get_normalized_svi_OSWVCEVSW_cfg(svi_not_to_be_migrated_N3048, svi_on_N3048)
+    cfg_svi_and_ospf_N3048 = add_ospf_to_svi_cfg(cfg_svi_N3048,svi_on_N3048,svi_to_area_dict)
     routes_for_N3048 = get_routes_for_devices(routes, svi_on_N3048)
     
 else: # if not
@@ -501,19 +553,20 @@ else: # if not
     cfg_intf_N9508 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N9508, migr_dict_N9508)
     cfg_vlan_N9508 = get_normalized_vlan_OSWVCEVSW_cfg(vlan_not_to_be_migrated_N9508)
     cfg_svi_N9508 = get_normalized_svi_OSWVCEVSW_cfg(svi_not_to_be_migrated_N9508, svi_on_N9508)
+    cfg_svi_and_ospf_N9508 = add_ospf_to_svi_cfg(cfg_svi_N9508,svi_on_N9508,svi_to_area_dict) # from cfg_svi_N9508 could get svi_on_N9508 via ciscoconfparse
     routes_for_N9508 = get_routes_for_devices(routes, svi_on_N9508)
     
     migr_dict_N3048 = get_migration_dictionary_N3048()
     cfg_intf_N3048 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N3048, migr_dict_N3048)
     cfg_vlan_N3048 = get_normalized_vlan_OSWVCEVSW_cfg(vlan_not_to_be_migrated_N3048)
-    cfg_svi_N3048 = ['!']
+    cfg_svi_and_ospf_N3048 = ['!']
     routes_for_N3048 = ['!']
 
-cfg_N9508 = cfg_vlan_N9508 + cfg_intf_N9508 + cfg_svi_N9508  + routes_for_N9508
+cfg_N9508 = cfg_vlan_N9508 + cfg_intf_N9508 + cfg_svi_and_ospf_N9508  + routes_for_N9508
 parse_out_N9508 =  c.CiscoConfParse(cfg_N9508)
 parse_out_N9508.save_as(OSWVCE_CFG_TXT)
 
-cfg_N3048 = cfg_vlan_N3048 + cfg_intf_N3048 + cfg_svi_N3048 + routes_for_N3048
+cfg_N3048 = cfg_vlan_N3048 + cfg_intf_N3048 + cfg_svi_and_ospf_N3048 + routes_for_N3048
 parse_out_N3048 =  c.CiscoConfParse(cfg_N3048)
 parse_out_N3048.save_as(OSWVSW_CFG_TXT)
 print "done write"
