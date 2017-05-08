@@ -11,7 +11,7 @@ TYPE = 'Type2'
 #TYPE = 'Type4'
 
 SHEET = SWITCH
-BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C/' + SWITCH + '/Stage_2/'
+BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C-B/' + SWITCH + '/Stage_2/'
 
 INPUT_XLS = BASE_DIR + SWITCH + '_OUT_DB_OPT.xlsx'
 

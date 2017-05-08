@@ -10,9 +10,9 @@ import re
 #############################################
 
 SWITCH = 'NAOSW133'
-INFRA_CH_GRP_LIST = [1,133]
+#INFRA_CH_GRP_LIST = [1,133]
 SHEET = SWITCH
-BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C/' + SWITCH + '/Stage_1/'
+BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C-B/' + SWITCH + '/Stage_1/'
 
 
 INPUT_XLS = BASE_DIR + SWITCH + '_DB_MIGRATION.xlsx'
@@ -175,7 +175,7 @@ def readin_xls_writeout_xls():
     for row_r,row_w in zip(ws_r.rows,ws_w.rows):
         if row_r[0].value == "Device":
             continue
-        intf_from_xls = 'interface ' + str.strip(str(row_r[3].value))
+        intf_from_xls = str.strip(str(row_r[3].value))                   # was intf_from_xls = 'interface ' + str.strip(str(row_r[3].value))
         #print row_r[3].value
         row_w[0].value = str(row_r[3].value)                                             # Copy interface (or row_r[3].value)
         row_w[5].value = str(row_r[13].value)                                            # Copy New-Nexus AP into Nexus AP
@@ -208,7 +208,7 @@ def readin_xls_writeout_xls():
                             channel_group = get_channel_group(intf_cfg)
                             row_w[6].value = channel_group
                                 
-                elif intf_obj.has_child_with("switchport mode access"):   
+                elif intf_obj.has_child_with("switchport mode access") or intf_obj.has_child_with("switchport access vlan"):   
                     row_w[2].value = 'Access'   
                     if intf_obj.has_child_with("switchport access vlan"):
                         access_vlan = get_access_vlan(intf_cfg)                                                    
