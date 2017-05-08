@@ -543,8 +543,10 @@ else: # if not
     
     svi_on_N9508 = list (set(candidate_svi_on_N9508) | set(candidate_svi_on_N3048))
     svi_on_N9508.sort(key=natural_keys) 
-    #print "candidate_svi_on_N9508 = ", candidate_svi_on_N9508
+    #
+    #print "candidate_svi_on_N9508 = ", candidate_svi_on_N9508 
     #print "candidate_svi_on_N3048 = ", candidate_svi_on_N3048
+    #
     print "svi_on_N9508 = ", svi_on_N9508
     
     svi_not_to_be_migrated_N9508 = get_list_not_to_be_migrated(svi_on_N9508, svi_from_cfg)
