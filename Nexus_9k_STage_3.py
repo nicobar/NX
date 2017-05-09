@@ -162,6 +162,7 @@ def get_migration_dictionary_N9508():
 def get_normalized_if_OSWVCEVSW_cfg(if_ntbm, mig_dict):
     ''' return cfg as list of migrated and cleaned - fz clean_if_cfg - interfaces  '''
     
+    intf_gr = get_if_xls_guardroot()
     parse = c.CiscoConfParse(OSW_CFG_TXT)
      
     intf_obj_list = parse.find_objects(r'^interface .*Ethernet')
@@ -171,11 +172,14 @@ def get_normalized_if_OSWVCEVSW_cfg(if_ntbm, mig_dict):
             intf_obj.delete()
         elif intf_obj.text in mig_dict:
             intf_obj.replace(intf_obj.text, mig_dict[intf_obj.text])
+            if intf_obj.text in intf_gr:
+                intf_obj.append_to_family('spanning-tree guard root', auto_indent=True)
+        
 
              
     parse.commit()
     
-    intf_obj_list = parse.find_objects(r'^interface Ethernet')
+    intf_obj_list = parse.find_objects(r'^interface .*Ethernet')
     cf_intf_list = [intf_obj.ioscfg + ['!'] for intf_obj in intf_obj_list]
     cf_intf_1 =  list(itertools.chain.from_iterable(cf_intf_list))
     cf_intf_2 = clean_if_cfg(cf_intf_1)
@@ -431,6 +435,20 @@ def add_ospf_to_svi_cfg(svi_conf_list,svi_on_device,d_svi_to_area):
     
     return svi_with_ospf_conf
 
+def get_if_xls_guardroot():
+    ''' Return intf list if root_guard == 'Yes' as list '''
+    
+    wb_r = load_workbook(INPUT_XLS)
+    ws_r = wb_r.get_sheet_by_name(SHEET)
+    DST_VCE_IF_COL = 2
+    ROOT_GUARD_COL = 13
+    
+    if_gr =  [str(ws_r.cell(row=r, column=DST_VCE_IF_COL).value) for r in range(2, ws_r.max_row + 1) if str(ws_r.cell(row=r, column=ROOT_GUARD_COL).value) == 'Yes']
+    if_gr.sort(key=natural_keys)
+    return if_gr
+
+
+
 #############################################
 ################### MAIN ####################
 #############################################
@@ -543,10 +561,8 @@ else: # if not
     
     svi_on_N9508 = list (set(candidate_svi_on_N9508) | set(candidate_svi_on_N3048))
     svi_on_N9508.sort(key=natural_keys) 
-    #
-    #print "candidate_svi_on_N9508 = ", candidate_svi_on_N9508 
+    #print "candidate_svi_on_N9508 = ", candidate_svi_on_N9508
     #print "candidate_svi_on_N3048 = ", candidate_svi_on_N3048
-    #
     print "svi_on_N9508 = ", svi_on_N9508
     
     svi_not_to_be_migrated_N9508 = get_list_not_to_be_migrated(svi_on_N9508, svi_from_cfg)
