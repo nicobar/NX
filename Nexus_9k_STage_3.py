@@ -5,9 +5,9 @@ import ipaddr
 import itertools
 
 
-#############################################
-################# VARIABLES #################
-#############################################
+######################################################
+################# VARIABLES/CONSTANT #################
+######################################################
 
 SWITCH = 'NAOSW133'
 SHEET = SWITCH
@@ -18,6 +18,10 @@ INPUT_XLS = BASE_DIR + SWITCH + '_OUT_DB_OPT.xlsx'
 OSW_CFG_TXT = BASE_DIR + SWITCH + '.txt'
 OSWVCE_CFG_TXT = BASE_DIR + SWITCH + 'VCE' +'.txt'
 OSWVSW_CFG_TXT = BASE_DIR + SWITCH + 'VSW' +'.txt'
+
+
+qos_sp_def_N9508_dict = {'U':' service-policy type qos input UNTRUST','T':' service-policy type qos input TRUST', 'S':' service-policy type qos input SIGNALLING','V':' service-policy type qos input VOICE', 'D':' service-policy type qos input 2G_3G_DATA'}
+qos_sp_def_N3048_dict = {'U':' service-policy type qos input UNTRUST','T':''                                    , 'S':' service-policy type qos input SIGNALLING','V':' service-policy type qos input VOICE', 'D':' service-policy type qos input 2G_3G_DATA', 'K':' service-policy type qos input POLICY_MGW'}
 
 #############################################
 ################ FUNCTIONS ##################
@@ -159,10 +163,12 @@ def get_migration_dictionary_N9508():
     return {str(ws_r.cell(row = r, column = SRC_IF_COL).value): str(ws_r.cell(row = r, column = DST_IF_COL).value) for r in range(2,ws_r.max_row+1) if ws_r.cell(row = r, column = NEXUS_AP_COL).value != 'N3048' }
 
 
-def get_normalized_if_OSWVCEVSW_cfg(if_ntbm, mig_dict):
+def get_normalized_if_OSWVCEVSW_cfg(if_ntbm, mig_dict, qos_sp_def_dict):
     ''' return cfg as list of migrated and cleaned - fz clean_if_cfg - interfaces  '''
     
     intf_gr = get_if_xls_guardroot()
+    
+    intf_qos_dict = get_if_to_qos_xls_dict()
     parse = c.CiscoConfParse(OSW_CFG_TXT)
      
     intf_obj_list = parse.find_objects(r'^interface .*Ethernet')
@@ -174,6 +180,9 @@ def get_normalized_if_OSWVCEVSW_cfg(if_ntbm, mig_dict):
             intf_obj.replace(intf_obj.text, mig_dict[intf_obj.text])
             if intf_obj.text in intf_gr:
                 intf_obj.append_to_family('spanning-tree guard root', auto_indent=True)
+            if intf_obj.text in intf_qos_dict:
+                intf_obj.append_to_family(qos_sp_def_dict[intf_qos_dict[intf_obj.text]], auto_indent=True)
+                
         
 
              
@@ -436,7 +445,7 @@ def add_ospf_to_svi_cfg(svi_conf_list,svi_on_device,d_svi_to_area):
     return svi_with_ospf_conf
 
 def get_if_xls_guardroot():
-    ''' Return intf list if root_guard == 'Yes' as list '''
+    ''' Return intf list if root_guard == 'Yes' '''
     
     wb_r = load_workbook(INPUT_XLS)
     ws_r = wb_r.get_sheet_by_name(SHEET)
@@ -447,7 +456,17 @@ def get_if_xls_guardroot():
     if_gr.sort(key=natural_keys)
     return if_gr
 
-
+def get_if_to_qos_xls_dict():
+    ''' Return intf list if root_guard == 'Yes' '''
+    
+    wb_r = load_workbook(INPUT_XLS)
+    ws_r = wb_r.get_sheet_by_name(SHEET)
+    DST_VCE_IF_COL = 2
+    QOS_COL = 5
+    
+    qos_gr =  {str(ws_r.cell(row=r, column=DST_VCE_IF_COL).value) : str(ws_r.cell(row=r, column=QOS_COL).value) for r in range(2, ws_r.max_row + 1) if str(ws_r.cell(row=r, column=QOS_COL).value) != 'No'}
+   
+    return qos_gr
 
 #############################################
 ################### MAIN ####################
@@ -543,7 +562,7 @@ if len(svi_on_N3048) > 0: # are there svi on N3048 ??
     print "svi_not_to_be_migrated_N3048 = ", svi_not_to_be_migrated_N3048    
     
     migr_dict_N9508 = get_migration_dictionary_N9508()
-    cfg_intf_N9508 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N9508, migr_dict_N9508)
+    cfg_intf_N9508 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N9508, migr_dict_N9508, qos_sp_def_N9508_dict)
     cfg_vlan_N9508 = get_normalized_vlan_OSWVCEVSW_cfg(vlan_not_to_be_migrated_N9508)
     cfg_svi_N9508 = get_normalized_svi_OSWVCEVSW_cfg(svi_not_to_be_migrated_N9508, svi_on_N9508)
     cfg_svi_and_ospf_N9508 = add_ospf_to_svi_cfg(cfg_svi_N9508,svi_on_N9508,svi_to_area_dict) # from cfg_svi_N9508 could get svi_on_N9508 via ciscoconfparse
@@ -551,7 +570,7 @@ if len(svi_on_N3048) > 0: # are there svi on N3048 ??
     
     
     migr_dict_N3048 = get_migration_dictionary_N3048()
-    cfg_intf_N3048 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N3048, migr_dict_N3048)
+    cfg_intf_N3048 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N3048, migr_dict_N3048, qos_sp_def_N3048_dict)
     cfg_vlan_N3048 = get_normalized_vlan_OSWVCEVSW_cfg(vlan_not_to_be_migrated_N3048)
     cfg_svi_N3048 = get_normalized_svi_OSWVCEVSW_cfg(svi_not_to_be_migrated_N3048, svi_on_N3048)
     cfg_svi_and_ospf_N3048 = add_ospf_to_svi_cfg(cfg_svi_N3048,svi_on_N3048,svi_to_area_dict)
@@ -568,14 +587,14 @@ else: # if not
     svi_not_to_be_migrated_N9508 = get_list_not_to_be_migrated(svi_on_N9508, svi_from_cfg)
     
     migr_dict_N9508 = get_migration_dictionary_N9508()
-    cfg_intf_N9508 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N9508, migr_dict_N9508)
+    cfg_intf_N9508 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N9508, migr_dict_N9508, qos_sp_def_N9508_dict)
     cfg_vlan_N9508 = get_normalized_vlan_OSWVCEVSW_cfg(vlan_not_to_be_migrated_N9508)
     cfg_svi_N9508 = get_normalized_svi_OSWVCEVSW_cfg(svi_not_to_be_migrated_N9508, svi_on_N9508)
     cfg_svi_and_ospf_N9508 = add_ospf_to_svi_cfg(cfg_svi_N9508,svi_on_N9508,svi_to_area_dict) # from cfg_svi_N9508 could get svi_on_N9508 via ciscoconfparse
     routes_for_N9508 = get_routes_for_devices(routes, svi_on_N9508)
     
     migr_dict_N3048 = get_migration_dictionary_N3048()
-    cfg_intf_N3048 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N3048, migr_dict_N3048)
+    cfg_intf_N3048 = get_normalized_if_OSWVCEVSW_cfg(if_not_to_be_migrated_N3048, migr_dict_N3048, qos_sp_def_N3048_dict)
     cfg_vlan_N3048 = get_normalized_vlan_OSWVCEVSW_cfg(vlan_not_to_be_migrated_N3048)
     cfg_svi_and_ospf_N3048 = ['!']
     routes_for_N3048 = ['!']
