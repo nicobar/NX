@@ -12,7 +12,7 @@ import re
 SWITCH = 'NAOSW133'
 #INFRA_CH_GRP_LIST = [1,133]
 SHEET = SWITCH
-BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C-B/' + SWITCH + '/Stage_1/'
+BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C-C/' + SWITCH + '/Stage_1/'
 
 
 INPUT_XLS = BASE_DIR + SWITCH + '_DB_MIGRATION.xlsx'
@@ -111,7 +111,59 @@ def get_channel_group(if_cfg):
     return ch_gr    
 
 def create_legendas():
-    pass
+    wb = load_workbook(OUTPUT_XLS)
+    create_qos_legendas(wb)
+    create_color_legendas(wb)
+    create_check_legendas(wb)
+
+
+def create_qos_legendas(my_wb):
+    QOS_SHEET = 'QoS Legenda'
+    ws = my_wb.create_sheet(index = 1, title = QOS_SHEET)
+    
+    ws.cell('A1').value = 'QoS Codes'
+    ws.cell('A2').value = 'U = Untrusted (set DSCP = 0 to all traffic on interface): on all ports facing OAM LAN'
+    ws.cell('A3').value = 'T = Trusted (do not change any DSCP Value): on all ports facing LTE nodes (SecGW,MME,P-GW) and IT world' 
+    ws.cell('A4').value = 'V = Voice (set DSCP = EF to all traffic on interface): on all ports facing VOICE services (RTP, VOIP)'
+    ws.cell('A5').value = 'S = Signalling (set DSCP = AF31 to all traffic on interface): on all ports facing SIGNALLING services (SIP,SCTP, etc)'
+    ws.cell('A6').value = 'K = Trunk (set DSCP = AF31 for Signalling and DSCP = 0 for O&M, ACL based) on Nexus 3K. On N9K use ONE (the most imprtant traffic)  color (U,T,V,S) for all traffic'
+    
+    my_wb.save(filename = OUTPUT_XLS)
+
+def create_color_legendas(my_wb):
+    COLOR_SHEET = 'QoS Legenda'
+    ws = my_wb.create_sheet(index = 2, title = COLOR_SHEET) 
+    
+    redFill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')      # To be Deleted
+    orangeFill = PatternFill(start_color='FF8000', end_color='FF8000', fill_type='solid')   # To be Checked
+    yellowFill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')   # To be Merged    
+    pinkFill = PatternFill(start_color='eeaaee', end_color='eeaaee', fill_type='solid')     # To be Verified
+    greenFill =  PatternFill(start_color='a7bd2f', end_color='a7bd2f', fill_type='solid')   # Not To be Verified
+
+    ws.cell('A1').value = 'Legend'
+    ws.cell('A2').value = 'To be Deleted'
+    ws.cell('A2').fill = redFill
+    ws.cell('A3').value = 'To be Checked'
+    ws.cell('A3').fill = orangeFill
+    ws.cell('A4').value = 'To be Merged'
+    ws.cell('A4').fill = yellowFill   
+    ws.cell('A5').value = 'To be Verified'
+    ws.cell('A5').fill = pinkFill
+    ws.cell('A6').value = 'Not To be Verified'
+    ws.cell('A6').fill = greenFill
+
+    my_wb.save(filename = OUTPUT_XLS)
+
+def create_check_legendas(my_wb):
+    CHECK_SHEET = 'Check Legenda'
+    ws = my_wb.create_sheet(index = 3, title = CHECK_SHEET)
+    
+    ws.cell('A1').value = 'Checks to be done on Interfaces:'
+    ws.cell('A2').value = 'Check Half/Full duplex (Action column help here)'
+    ws.cell('A3').value = 'Change 10Mb/s --> 100Mb/s and half to full duplex where possible,'
+    ws.cell('A4').value = 'Check if notconnect ports (from show interface status command) have to migrated or not'
+    
+    my_wb.save(filename = OUTPUT_XLS)
 
 def colour_output_xlsx():
     '''Get OUTPUT_XLS and  colors lines to help people on check interfaces '''
@@ -248,3 +300,5 @@ def readin_xls_writeout_xls():
     
 readin_xls_writeout_xls()
 colour_output_xlsx()
+create_legendas()
+print 'End script'
