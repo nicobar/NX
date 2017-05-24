@@ -9,7 +9,7 @@ import re
 ################# VARIABLES #################
 #############################################
 
-SWITCH = 'NAOSW133'
+SWITCH = 'NAOSW136'
 #INFRA_CH_GRP_LIST = [1,133]
 SHEET = SWITCH
 BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C-C/' + SWITCH + '/Stage_1/'
@@ -141,15 +141,15 @@ def create_color_legendas(my_wb):
     greenFill =  PatternFill(start_color='a7bd2f', end_color='a7bd2f', fill_type='solid')   # Not To be Verified
 
     ws.cell('A1').value = 'Legend'
-    ws.cell('A2').value = 'To be Deleted'
+    ws.cell('A2').value = 'To be Deleted??'
     ws.cell('A2').fill = redFill
     ws.cell('A3').value = 'To be Checked'
     ws.cell('A3').fill = orangeFill
-    ws.cell('A4').value = 'To be Merged'
+    ws.cell('A4').value = 'To be Merged??'
     ws.cell('A4').fill = yellowFill   
     ws.cell('A5').value = 'To be Verified'
     ws.cell('A5').fill = pinkFill
-    ws.cell('A6').value = 'Not To be Verified'
+    ws.cell('A6').value = 'Not To be Verified??'
     ws.cell('A6').fill = greenFill
 
     my_wb.save(filename = OUTPUT_XLS)
@@ -178,20 +178,26 @@ def colour_output_xlsx():
     redFill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')         # To be Deleted
     orangeFill = PatternFill(start_color='FF8000', end_color='FF8000', fill_type='solid')   # To be Checked
     yellowFill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')   # To be Merged
+    pinkFill = PatternFill(start_color='eeaaee', end_color='eeaaee', fill_type='solid') 
    
 
     for row in ws.rows:
         #src_if = row[0].value
            
-        if  (row[5].value == "Infra" and  str.isdigit(str(row[6].value))) or row[13].value == "Decommissioned" or row[13].value == "Spare" or row[13].value == "Monitoring" or row[3].value == 1:           # if ((portchannel or member) and (id in INFRA)list)) or marked as infra then red
+        if row[14].value == "Description unchanged":    # same description
+           
+            if  (row[5].value == "Infra" and  str.isdigit(str(row[6].value))) or row[13].value == "Decommissioned" or row[13].value == "Spare" or row[13].value == "Monitoring" or row[3].value == 1:           # if ((portchannel or member) and (id in INFRA)list)) or marked as infra then red
+                for cell in row[0:MAX_COLUMN_COLOR]:
+                    cell.fill = redFill 
+            elif  (row[5].value == "Infra" and  not(str.isdigit(str(row[6].value)))) or row[13].value == "TBV" or row[13].value == "TBV-NC": 
+                for cell in row[0:MAX_COLUMN_COLOR]:
+                    cell.fill = orangeFill
+            elif row[13].value == "Core-Router" or row[13].value == "Core-Switch":
+                for cell in row[0:MAX_COLUMN_COLOR]:
+                    cell.fill = yellowFill
+        else:                                           # different description
             for cell in row[0:MAX_COLUMN_COLOR]:
-                cell.fill = redFill 
-        elif  (row[5].value == "Infra" and  not(str.isdigit(str(row[6].value)))) or row[13].value == "TBV" or row[13].value == "TBV-NC": 
-            for cell in row[0:MAX_COLUMN_COLOR]:
-                cell.fill = orangeFill
-        elif row[13].value == "Core-Router" or row[13].value == "Core-Switch":
-            for cell in row[0:MAX_COLUMN_COLOR]:
-                cell.fill = yellowFill
+                cell.fill = pinkFill
                 
     wb.save(filename = OUTPUT_XLS)
     print "End F2"
