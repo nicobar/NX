@@ -20,7 +20,7 @@ OUTPUT_XLS = BASE_DIR + SWITCH + '_OUT_DB.xlsx'
 OSW_CFG_TXT = BASE_DIR + SWITCH + '.txt'
 
 
-# +-----0-A------+-----1-B------+------2-C------+---3-D--+---4-E-+-----5-F----+-------6-G---+-------7-H---------+-------8-I-----+-------9-J-----+-------10-K-----+----11-L----+-----12-M-------+---13-N----------+---14-N----------+---15-N----------+   
+# +-----0-A------+-----1-B------+------2-C------+---3-D--+---4-E-+-----5-F----+-------6-G---+-------7-H---------+-------8-I-----+-------9-J-----+-------10-K-----+----11-L----+-----12-M-------+---13-N----------+---14-O----------+---15-P----------+   
 # +--SRC_OSW_IF--+--DST_VCE_IF--+--Access-Type--+--VLAN--+--QoS--+--Nexus_AP--+--Member/PO--+-----Descr---------+----Duplex-----+-----Speed-----+---Media Type---+---Action---+---Root-Guard---+---System-type---+---Check_Descr---+----Temp---------+ 
 #                                   |                                    
 #                                   |
@@ -181,7 +181,7 @@ def colour_output_xlsx():
    
 
     for row in ws.rows:
-        src_if = row[0].value
+        #src_if = row[0].value
            
         if  (row[5].value == "Infra" and  str.isdigit(str(row[6].value))) or row[13].value == "Decommissioned" or row[13].value == "Spare" or row[13].value == "Monitoring" or row[3].value == 1:           # if ((portchannel or member) and (id in INFRA)list)) or marked as infra then red
             for cell in row[0:MAX_COLUMN_COLOR]:

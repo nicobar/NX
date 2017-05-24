@@ -10,15 +10,25 @@ import itertools
 ######################################################
 
 SWITCH = 'NAOSW133'
-SHEET = SWITCH
-BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C-B/' + SWITCH + '/Stage_3/'
 
+SHEET = SWITCH
+
+
+
+BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C-C/' + SWITCH + '/Stage_3/'
 
 INPUT_XLS = BASE_DIR + SWITCH + '_OUT_DB_OPT.xlsx'
 OSW_CFG_TXT = BASE_DIR + SWITCH + '.txt'
 OSWVCE_CFG_TXT = BASE_DIR + SWITCH + 'VCE' +'.txt'
 OSWVSW_CFG_TXT = BASE_DIR + SWITCH + 'VSW' +'.txt'
 
+OTHER_SWITCH = 'NAOSW136'
+OTHER_BASE_DIR = '/Users/aspera/Documents/Clienti/VF-2017/NMP/NA1C-C/' + OTHER_SWITCH + '/Stage_3/'
+OTHER_INPUT_XLS = OTHER_BASE_DIR + OTHER_SWITCH + '_OUT_DB_OPT.xlsx'
+OTHER_SHEET = OTHER_SWITCH
+
+PO_OSW_OSW = r'^interface Port-channel1$'
+PO_OSW_VPE = r'^interface Port-channel133$'
 
 qos_sp_def_N9508_dict = {'U':' service-policy type qos input UNTRUST','T':' service-policy type qos input TRUST', 'S':' service-policy type qos input SIGNALLING','V':' service-policy type qos input VOICE', 'D':' service-policy type qos input 2G_3G_DATA'}
 qos_sp_def_N3048_dict = {'U':' service-policy type qos input UNTRUST','T':''                                    , 'S':' service-policy type qos input SIGNALLING','V':' service-policy type qos input VOICE', 'D':' service-policy type qos input 2G_3G_DATA', 'K':' service-policy type qos input POLICY_MGW'}
@@ -42,7 +52,7 @@ def natural_keys(text):
 def get_col_N3048(ws,col):
     ''' Take a worksheet, return column "col" as lists conditioned to col = 6 == "N3048" '''
     NEXUS_AP_COL = 6
-    return [str(ws.cell(row = r, column = col).value) for r in range(2,ws.max_row+1) if ws.cell(row = r, column = NEXUS_AP_COL).value == 'N3048' ]
+    return [str(ws.cell(row = r, column = col).value) for r in range(2,ws.max_row) if ws.cell(row = r, column = NEXUS_AP_COL).value == 'N3048' ]
 
 def get_col_N9508(ws,col):
     ''' Take a worksheet, return column "col" as lists conditioned to col = 6 != "N3048" '''
@@ -110,6 +120,37 @@ def get_vlan_from_xls():
     lst2_N9508.sort(key=natural_keys)
     lst2_N3048.sort(key=natural_keys)
     return (lst2_N9508,lst2_N3048)
+
+def get_vlan_other_sw_from_xls():
+    ''' from xls get list of all L2 vlan  '''
+    a = set()
+    
+    wb_r = load_workbook(OTHER_INPUT_XLS)
+    ws_r = wb_r.get_sheet_by_name(OTHER_SHEET)
+    VLAN_COL = 4
+
+    lst_N9508 = get_col_N9508(ws_r,VLAN_COL)
+    lst_N3048 = get_col_N3048(ws_r,VLAN_COL)
+    lst1 = lst_N9508 + lst_N3048
+    st=set(lst1)
+    lst=list(st)
+    lst.sort(key=natural_keys)
+    
+    for elem in lst:
+        if ',' in elem:
+            b = elem.split(',')
+            for elem2 in b:
+                a.add(elem2)
+        else:
+            a.add(elem)
+            
+ 
+
+    lst2 = list(a)
+    
+    lst2.sort(key=natural_keys)
+    
+    return lst2
 
 def get_svi_from_cfg():
     ''' from cfg get list of all svi interfaces  '''
@@ -468,6 +509,65 @@ def get_if_to_qos_xls_dict():
    
     return qos_gr
 
+def from_range_to_list(range_str):
+    
+    l = []
+    
+    h_l = range_str.split('-')
+    start = int(h_l[0])
+    stop = int(h_l[1])
+    for x in range(start,stop+1):
+        l.append(str(x))
+    return l
+
+
+def  get_vlan_list_from_po(po):
+    
+    po_vlan1 = []
+    
+
+    parse = c.CiscoConfParse(OSW_CFG_TXT)
+    intf_obj = parse.find_objects(po)
+    spur_list = [re.findall(r'switchport trunk allowed vlan *[add]* ([\d+,-]*)',x) for x in intf_obj[0].ioscfg ]
+    spur_list0 = list(itertools.chain.from_iterable(spur_list))
+    spur_list1 = [x.split(',') for x in spur_list0]
+    spur_list2 = list(itertools.chain.from_iterable(spur_list1))
+    
+    for y in spur_list2:
+        if '-' in y:
+            po_vlan1.append(from_range_to_list(y)[0])
+        else:
+            po_vlan1.append(y)
+    
+    po_vlan_set = set(po_vlan1)
+    po_vlan = list(po_vlan_set)
+    po_vlan.sort(key=natural_keys)
+    return po_vlan
+
+def get_vlan_to_add():
+    
+
+    #list_a = get_vlan_from_xls()
+    list_b = get_vlan_list_from_po(PO_OSW_VPE)
+    list_c = get_vlan_list_from_po(PO_OSW_OSW)
+    list_other = get_vlan_other_sw_from_xls()
+
+    print "Allowed VLAN list on OSW<-->VPE Port-channel : ", list_b
+    print "Allowed VLAN list on OSW<-->OSW Port-channel : ", list_c
+    #set_a = set(list_a)
+    set_b = set(list_b)
+    set_c = set(list_c)
+
+
+    #v_to_add = list(set_a | (set_b & set_c))
+    v_to_add = list(set_b & set_c)
+    v_to_add.sort(key=natural_keys)
+    vv_to_add = [x for x in v_to_add if x in list_other] #to have just VLAN in both infrastructure trunks AND on other switch in access/trunk if
+ 
+    print "VLAN list MUST BE PRESENT on this OSW withouth access/trunk if", vv_to_add
+    
+    return vv_to_add
+
 #############################################
 ################### MAIN ####################
 #############################################
@@ -501,6 +601,10 @@ vlan_cfg = get_vlan_from_cfg()
 print "candidate_vlan_xls_N9508 = ", candidate_vlan_xls_N9508
 print "candidate_vlan_xls_N3048 = ", candidate_vlan_xls_N3048
 
+vlan_to_add = get_vlan_to_add() # these are MP VLAN in po_ose2ose and po_osw_vpe, not in access or trunk
+candidate_vlan_xls_N9508 += vlan_to_add
+
+
 ## --> vlan_on_N9508 = set(vlan_xls_N9508) | ( set(VLAN_xls_N3048) -set( real_svi_on_N3048)) ultima parentesi sono le VLAN su 3048 che devono essere anche sul 9508 e sono le vlan del3048 a meno delle svi del 3048
 
 ## MUST BE --> vlan_on_N9508 = set(candidate_vlan_xls_N9508) | ( set(VLAN_xls_N3048) -set( real_svi_on_N3048)) 
@@ -533,7 +637,8 @@ print svi_on_N3048
 
 ################ REAL VLAN  ##############
 
-vlan_on_N9508 = set(candidate_vlan_xls_N9508) | ( set(candidate_vlan_xls_N3048) - set(svi_on_N3048))  # ultima parentesi sono le VLAN su 3048 che devono essere anche sul 9508 e sono le vlan del3048 a meno delle svi del 3048
+vlan_on_N9508 = list(set(candidate_vlan_xls_N9508) | ( set(candidate_vlan_xls_N3048) - set(svi_on_N3048)))  # ultima parentesi sono le VLAN su 3048 che devono essere anche sul 9508 e sono le vlan del3048 a meno delle svi del 3048
+vlan_on_N9508.sort(key=natural_keys)
 vlan_on_N3048 = candidate_vlan_xls_N3048
 
 print "vlan_on_N9508 = ", vlan_on_N9508
@@ -545,7 +650,7 @@ vlan_not_to_be_migrated_N3048 = candidate_vlan_not_to_be_migrated_N3048
 ################ MAIN IF #############
 
 net_in_area_dict = get_net_in_area()
-svi_to_area_dict = get_svi_to_area (net_in_area_dict)
+svi_to_area_dict = get_svi_to_area(net_in_area_dict)
 
 if len(svi_on_N3048) > 0: # are there svi on N3048 ??
     svi_on_N9508 = list (set(candidate_svi_on_N9508) - set(svi_on_N3048))
