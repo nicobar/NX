@@ -17,8 +17,6 @@ def natural_keys(text):
           
 
 def create_if_subif_map():
-     
-    #out_cfg_file = PATH + device + '_OUT' +'.txt'
     
     mymap = {}
      
@@ -65,32 +63,18 @@ def get_po_vce():
     
     if_subif_map = create_if_subif_map()
     
-#    vlan_string_h = get_vlan_string(if_subif_map.values())
-#     vlan_list_list = if_subif_map.values()
-# 
-#     vlan_string_list = [ ','.join(vlan_list) for vlan_list in vlan_list_list ]
-#     vlan_string_h1 = ','.join(vlan_string_list)
-#     if vlan_string_h1.find('801') > 0:
-#         vlan_string_h1 = vlan_string_h1.replace('801','1051')
-#     elif vlan_string_h1.find('802') > 0:
-#         vlan_string_h1 = vlan_string_h1.replace('802','1052')
-#     
-#     vlan_string_h2 = vlan_string_h1.split(',')
-#     vlan_string_h2.sort(key=natural_keys)
+
     vlan_tbm = get_vlan_to_be_migrated()
     
     real_vlan_tbm = get_vlan_string(if_subif_map.values(), vlan_tbm)
     
-#     vlan_string_h1 = [ x for x in vlan_string_h if x in vlan_tbm ]
-#     
-#     vlan_string = ','.join(vlan_string_h1)
 
     if real_vlan_tbm.find('801') > 0:
         real_vlan_tbm = real_vlan_tbm.replace('801','1051')
     elif real_vlan_tbm.find('802') > 0:
         real_vlan_tbm = real_vlan_tbm.replace('802','1052')
 
-    vce_po_cfg_h = ['!',
+    vce_po_cfg_h = [
                   new_po,
                   ' description Bundle to <VPE>',
                   ' shutdown',
@@ -105,7 +89,6 @@ def get_po_vce():
                   ' no ip address',
                   ' port-channel min-links 2',
                   ' no cdp enable',
-                  '!',
                   ]
     return vce_po_cfg_h
 
@@ -226,12 +209,11 @@ def get_stp_conf():
     
     line_rb = 'spanning-tree vlan {0} priority 24576'.format(','.join(rb_vlan_lst))
     line_srb = 'spanning-tree vlan {0} priority 28672'.format(','.join(srb_vlan_lst))
-    #print line_rb
-    #print line_srb
+ 
     stp_conf.append('!')
     stp_conf.append(line_rb)
     stp_conf.append(line_srb)
-    stp_conf.append('!')
+    #stp_conf.append('!')
     return stp_conf
 
 def get_801_802_svi(): 
@@ -299,11 +281,7 @@ def get_po_vce_vce_700():
             osw_vlan_set.add(elem)
             
     result_l = []
-#     for v in vlan_semifinal1:
-#         if v in osw_vlan_set:
-#             result_l.append(v)
-    
-# To try
+
     for v in osw_vlan_set:
         if v in vlan_semifinal1:
             result_l.append(v)
@@ -311,27 +289,18 @@ def get_po_vce_vce_700():
     result_l.sort(key=natural_keys)
     result_s = ','.join(result_l)
 
-    po_700 = [
-             '!', 
+    po_700 = [           
             'interface port-channel700',
             ' service-policy type qos input TRUST',
-            ' switchport trunk allowed vlan ' + result_s ,
-            '!'
+            ' switchport trunk allowed vlan ' + result_s 
             ]
 
     return po_700
 
-def get_po_vce_vsw1_301():
-    
-#    vsw_cfg_list = [ str(PATH + vsw +'.txt') for vsw in vsw_list ]
-    
+def get_po_vce_vsw1_301(): 
     
     vlan_final = []
     
-    #help_str = ''
-#    i=0
-#    for vsw_cfg in vsw_cfg_list:
-#        i += 1
     parse1 = c.CiscoConfParse(VSW_CFG_TXT_IN)
    
    
@@ -345,10 +314,18 @@ def get_po_vce_vsw1_301():
 
     po_301_tot = [  'interface port-channel301',  
                     ' service-policy type qos input TRUST', 
-                    ' switchport trunk allowed vlan '  + vlan_final_s,
-                    '!']
+                    ' switchport trunk allowed vlan '  + vlan_final_s
+                ]
             
     return po_301_tot
+
+def write_cfg(conf_list):
+    ''' write conf_list on a file whom file_name contains device '''
+    
+    f = open(VCE_CFG_TXT_OUT,'w+')
+    for line in conf_list:
+        f.write(line + '\n')
+    f.close() 
 
 #################### CONSTATNT ##################
 
@@ -391,13 +368,8 @@ stp_cfg_list = get_stp_conf()
 svi_conf_list = get_801_802_svi()
 po700_conf = get_po_vce_vce_700()
 po301_conf = get_po_vce_vsw1_301()
-for elem in  po_vce_cfg_list:
+vce_conf = ['!'] + stp_cfg_list + ['!'] + po_vce_cfg_list + ['!'] + po700_conf + ['!'] +  po301_conf + ['!'] +  svi_conf_list + ['!'] 
+for elem in vce_conf:
     print elem
-for elem in   stp_cfg_list:
-    print elem
-for elem in   svi_conf_list:
-    print elem    
-for elem in   po700_conf:
-    print elem
-for elem in   po301_conf:
-    print elem
+write_cfg(vce_conf)
+print 'Script Ends'
