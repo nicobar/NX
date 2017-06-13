@@ -126,7 +126,7 @@ def create_qos_legendas(my_wb):
     ws.cell('A3').value = 'T = Trusted (do not change any DSCP Value): on all ports facing LTE nodes (SecGW,MME,P-GW) and IT world' 
     ws.cell('A4').value = 'V = Voice (set DSCP = EF to all traffic on interface): on all ports facing VOICE services (RTP, VOIP)'
     ws.cell('A5').value = 'S = Signalling (set DSCP = AF31 to all traffic on interface): on all ports facing SIGNALLING services (SIP,SCTP, etc)'
-    ws.cell('A6').value = 'K = Trunk (set DSCP = AF31 for Signalling and DSCP = 0 for O&M, ACL based) on Nexus 3K. On N9K use ONE (the most imprtant traffic)  color (U,T,V,S) for all traffic'
+    ws.cell('A6').value = 'K = Trunk (set DSCP = AF31 for Signalling and DSCP = 0 for O&M, ACL based) on Nexus 9K'
     
     my_wb.save(filename = OUTPUT_XLS)
 
