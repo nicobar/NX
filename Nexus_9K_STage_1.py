@@ -115,6 +115,7 @@ def create_legendas():
     create_qos_legendas(wb)
     create_color_legendas(wb)
     create_check_legendas(wb)
+    create_ap_legendas(wb)
 
 
 def create_qos_legendas(my_wb):
@@ -131,7 +132,7 @@ def create_qos_legendas(my_wb):
     my_wb.save(filename = OUTPUT_XLS)
 
 def create_color_legendas(my_wb):
-    COLOR_SHEET = 'QoS Legenda'
+    COLOR_SHEET = 'Color Legenda'
     ws = my_wb.create_sheet(index = 2, title = COLOR_SHEET) 
     
     redFill = PatternFill(start_color='FF0000', end_color='FF0000', fill_type='solid')      # To be Deleted
@@ -147,10 +148,11 @@ def create_color_legendas(my_wb):
     ws.cell('A3').fill = orangeFill
     ws.cell('A4').value = 'To be Merged??'
     ws.cell('A4').fill = yellowFill   
-    ws.cell('A5').value = 'To be Verified'
-    ws.cell('A5').fill = pinkFill
-    ws.cell('A6').value = 'Not To be Verified??'
-    ws.cell('A6').fill = greenFill
+    ws.cell('A5').value = 'Interface description'
+    ws.cell('A6').value = 'To be Verified'
+    ws.cell('A6').fill = pinkFill
+    ws.cell('A7').value = 'Not To be Verified??'
+    ws.cell('A7').fill = greenFill
 
     my_wb.save(filename = OUTPUT_XLS)
 
@@ -162,6 +164,27 @@ def create_check_legendas(my_wb):
     ws.cell('A2').value = 'Check Half/Full duplex (Action column help here)'
     ws.cell('A3').value = 'Change 10Mb/s --> 100Mb/s and half to full duplex where possible,'
     ws.cell('A4').value = 'Check if notconnect ports (from show interface status command) have to migrated or not'
+    
+    my_wb.save(filename = OUTPUT_XLS)
+
+def create_ap_legendas(my_wb):
+    QOS_SHEET = 'Access Point Legenda'
+    ws = my_wb.create_sheet(index = 1, title = AP_SHEET)
+    
+    ws.cell('A1').value = 'Access Point Values (Column C)'
+    ws.cell('A2').value = 'Access'
+    ws.cell('A3').value = 'Trunk' 
+   
+    ws.cell('C1').value = 'System Type Values (Column N)'
+    ws.cell('C2').value = 'Core-Router'
+    ws.cell('c3').value = 'Core-Switch'
+    ws.cell('C4').value = 'Decomissioned'
+    ws.cell('C5').value = 'Edge-Router'
+    ws.cell('C6').value = 'Edge-Switch'
+    ws.cell('C7').value = 'L2-Host'
+    ws.cell('C8').value = 'Monitoring'
+    ws.cell('C9').value = 'Port-Channel'
+    ws.cell('C10').value = 'Spare'
     
     my_wb.save(filename = OUTPUT_XLS)
 
