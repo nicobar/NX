@@ -168,7 +168,7 @@ def create_check_legendas(my_wb):
     my_wb.save(filename = OUTPUT_XLS)
 
 def create_ap_legendas(my_wb):
-    QOS_SHEET = 'Access Point Legenda'
+    AP_SHEET = 'Access Point Legenda'
     ws = my_wb.create_sheet(index = 1, title = AP_SHEET)
     
     ws.cell('A1').value = 'Access Point Values (Column C)'
